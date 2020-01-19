@@ -1,0 +1,66 @@
+version: "3.6"
+services:
+  config-server:
+    image: httpd:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - config-server:/usr/local/apache2/htdocs:ro
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/data/postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGDATA: /data/postgres
+    restart: unless-stopped
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    volumes:
+      - pgadmin:/root/.pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    links:
+      - postgres
+    restart: unless-stopped
+  keycloak-server:
+    image: jboss/keycloak:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin
+  account-microservice:
+    image: luxlunch-server/luxlunch-account-microservice
+    links:
+      - postgres
+    depends_on:
+      - postgres
+    expose:
+      - "8081"
+  monitor-dashboard:
+    image: luxlunch-server/luxlunch-monitor-dashboard
+    ports:
+      - "9100:9100"
+  api-gateway:
+    image: luxlunch-server/luxlunch-api-gateway
+    ports:
+      - "8787:8787"
+    environment:
+      - JAVA_OPTS="-Xms128m -Xmx256m"
+    links:
+      - keycloak-server
+      - account-microservice
+    extra_hosts:
+      - "dockernet:${EXTERNAL_IP:-127.0.0.1}"
+volumes:
+  postgres:
+  pgadmin:
+  config-server:

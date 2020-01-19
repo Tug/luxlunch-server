@@ -1,0 +1,122 @@
+version: "3.6"
+services:
+  config-server:
+    image: httpd:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - config-server:/usr/local/apache2/htdocs:ro
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/data/postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGDATA: /data/postgres
+    restart: unless-stopped
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    volumes:
+      - pgadmin:/root/.pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    links:
+      - postgres
+    restart: unless-stopped
+  keycloak-server:
+    image: jboss/keycloak:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.5.1
+    container_name: elasticsearch
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    command: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    healthcheck:
+      test: curl --cacert /usr/share/elasticsearch/config/certs/ca/ca.crt -s https://localhost:9200 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.5.1
+    container_name: logstash
+    ports:
+      - "12201:12201/udp"
+    command: -e 'input { gelf { host => "0.0.0.0" port => 12201 } }
+              output { elasticsearch { hosts => ["elasticsearch"] } }'
+    links:
+      - elasticsearch
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: bin/logstash -t
+      interval: 60s
+      timeout: 50s
+      retries: 5
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.5.1
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    links:
+      - elasticsearch
+      - logstash
+    depends_on:
+      - logstash
+    healthcheck:
+      test: curl --cacert /usr/share/elasticsearch/config/certs/ca/ca.crt -s https://localhost:5601 >/dev/null; if [[ $$? == 52 ]]; then echo 0; else echo 1; fi
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  account-microservice:
+    image: luxlunch-server/luxlunch-account-microservice
+    links:
+      - postgres
+      - logstash
+    depends_on:
+      - postgres
+      - logstash
+    expose:
+      - "8081"
+  monitor-dashboard:
+    image: luxlunch-server/luxlunch-monitor-dashboard
+    ports:
+      - "9100:9100"
+    links:
+      - logstash
+    depends_on:
+      - logstash
+  api-gateway:
+    image: luxlunch-server/luxlunch-api-gateway
+    ports:
+      - "8787:8787"
+    environment:
+      - JAVA_OPTS="-Xms128m -Xmx256m"
+    links:
+      - keycloak-server
+      - account-microservice
+      - logstash
+    extra_hosts:
+      - "dockernet:${EXTERNAL_IP:-127.0.0.1}"
+volumes:
+  postgres:
+  pgadmin:
+  es_data:
+  config-server:
