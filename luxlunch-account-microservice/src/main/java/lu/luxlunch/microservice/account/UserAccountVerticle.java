@@ -1,5 +1,7 @@
 package lu.luxlunch.microservice.account;
 
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import lu.luxlunch.microservice.account.api.RestUserAccountAPIVerticle;
 import lu.luxlunch.microservice.account.impl.JdbcAccountServiceImpl;
 import lu.luxlunch.microservice.common.BaseMicroserviceVerticle;
@@ -18,12 +20,15 @@ import static lu.luxlunch.microservice.account.AccountService.SERVICE_NAME;
  */
 public class UserAccountVerticle extends BaseMicroserviceVerticle {
 
+  private static final Logger logger = LoggerFactory.getLogger(UserAccountVerticle.class);
+
   private AccountService accountService;
 
   @Override
   public void start(Future<Void> future) throws Exception {
     super.start();
 
+    logger.info( "UserAccount verticle config: " + config().encodePrettily() );
     // create the service instance
     accountService = new JdbcAccountServiceImpl(vertx, config());
     // register the service proxy on event bus

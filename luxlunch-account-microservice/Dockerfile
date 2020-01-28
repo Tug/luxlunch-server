@@ -1,4 +1,4 @@
-FROM java:8-jre
+FROM java:13-jre
 
 ENV VERTICLE_FILE target/luxlunch-account-microservice-fat.jar
 

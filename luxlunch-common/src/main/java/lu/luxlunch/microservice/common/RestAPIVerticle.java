@@ -1,24 +1,24 @@
 package lu.luxlunch.microservice.common;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
+import io.vertx.core.*;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.sstore.ClusteredSessionStore;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * An abstract base verticle that provides several helper methods for REST API.
@@ -27,6 +27,9 @@ import java.util.function.Function;
  */
 public abstract class RestAPIVerticle extends BaseMicroserviceVerticle {
 
+  private static final Logger logger = LoggerFactory.getLogger(RestAPIVerticle.class);
+
+  private List<HttpServer> httpServerList = new ArrayList<>();
   /**
    * Create http server for the REST service.
    *
@@ -39,7 +42,16 @@ public abstract class RestAPIVerticle extends BaseMicroserviceVerticle {
     Future<HttpServer> httpServerFuture = Future.future();
     vertx.createHttpServer()
       .requestHandler(router::accept)
-      .listen(port, host, httpServerFuture.completer());
+      .listen(port, host, res -> {
+        if (res.succeeded()) {
+          logger.info("HTTP Server started on " + host + ":" + port);
+          httpServerFuture.complete();
+          httpServerList.add(httpServerFuture.result());
+        } else {
+          logger.error("Error starting HTTP Serveron " + host + ":" + port, res.cause());
+          httpServerFuture.fail(res.cause());
+        }
+      });
     return httpServerFuture.map(r -> null);
   }
 

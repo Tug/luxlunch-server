@@ -13,7 +13,7 @@
   <artifactId>luxlunch-database-middleware</artifactId>
 
   <properties>
-    <main.verticle>lu.luxlunch.microservice.middleware.DatabaseMiddlewareVerticle</main.verticle>
+    <vertx.verticle>lu.luxlunch.microservice.middleware.DatabaseMiddlewareVerticle</vertx.verticle>
   </properties>
 
   <dependencies>
@@ -27,6 +27,23 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>io.reactiverse</groupId>
+        <artifactId>vertx-maven-plugin</artifactId>
+        <version>1.0.22</version>
+        <executions>
+          <execution>
+            <id>vmp</id>
+            <goals>
+              <goal>initialize</goal>
+              <goal>package</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <redeploy>true</redeploy>
+        </configuration>
+      </plugin>
       <plugin>
         <!-- plugin to create a `fat-jar` -->
         <artifactId>maven-shade-plugin</artifactId>

@@ -44,7 +44,7 @@ public class RestUserAccountAPIVerticle extends RestAPIVerticle {
     router.delete(API_DELETE).handler(this::apiDeleteUser);
 
     String host = config().getString("user.account.http.address", "0.0.0.0");
-    int port = config().getInteger("user.account.http.port", 8081);
+    int port = config().getInteger("user.account.http.port", 8082);
 
     // create HTTP server and publish REST service
     createHttpServer(router, host, port)

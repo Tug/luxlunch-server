@@ -1,0 +1,25 @@
+FROM maven:3.6.3-jdk-13
+
+# This is needed so vertx can stop the current process using `ps` and redeploy
+RUN set -eux; \
+    yum install -y procps
+
+ENV LUXLUNCH_HOME /luxlunch-server
+ENV MAVEN_CACHE_HOME /m2repo
+
+# Options for the JVM
+ENV MAVEN_OPTS=-Dmaven.repo.local=$MAVEN_CACHE_HOME \
+                -Dlog4j.configuration=log4j2.xml \
+                -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory
+
+# Maven params
+ENV MAVEN_ARGS=-Dvertx.config=src/config/docker.json
+
+VOLUME $LUXLUNCH_HOME
+VOLUME $MAVEN_CACHE_HOME
+
+EXPOSE 8082
+
+WORKDIR $LUXLUNCH_HOME/luxlunch-account-microservice
+ENTRYPOINT ["sh", "-c"]
+CMD ["mvn clean compile vertx:run $MAVEN_ARGS"]

@@ -1,0 +1,38 @@
+version: "3.6"
+services:
+  config-server:
+    image: httpd:alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - config-server:/usr/local/apache2/htdocs:ro
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/data/postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGDATA: /data/postgres
+    restart: unless-stopped
+  account-microservice:
+    image: luxlunch-server-dev/luxlunch-account-microservice
+    build:
+      context: ../luxlunch-account-microservice
+      dockerfile: Dockerfile.dev
+      args:
+        buildno: 1
+    volumes:
+      - ..:/luxlunch-server:rw
+      - ~/.m2/repository:/m2repo:rw
+    links:
+      - postgres
+    depends_on:
+      - postgres
+    ports:
+      - "8082:8082"
+volumes:
+  postgres:
+  config-server:
