@@ -1,7 +1,7 @@
 {
   "api.name": "account",
   "user.account.http.address": "0.0.0.0",
-  "user.account.http.port": 8082,
+  "user.account.http.port": 8282,
   "url": "jdbc:postgresql://postgres:5432/luxlunch?ssl=false",
   "driver_class": "org.postgresql.Driver",
   "user": "postgres",

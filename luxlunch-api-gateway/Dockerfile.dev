@@ -18,8 +18,8 @@ ENV MAVEN_ARGS=-Dvertx.config=src/config/docker.json
 VOLUME $LUXLUNCH_HOME
 VOLUME $MAVEN_CACHE_HOME
 
-EXPOSE 8282
+EXPOSE 8787
 
-WORKDIR $LUXLUNCH_HOME/luxlunch-account-microservice
+WORKDIR $LUXLUNCH_HOME/luxlunch-api-gateway
 ENTRYPOINT ["sh", "-c"]
 CMD ["mvn clean compile vertx:run $MAVEN_ARGS"]

@@ -12,13 +12,11 @@
   <modules>
     <!-- infrastructure components -->
     <module>luxlunch-common</module>
-    <module>luxlunch-database-middleware</module>
     <module>luxlunch-api-gateway</module>
 
     <!-- service components -->
     <module>luxlunch-account-microservice</module>
     <module>luxlunch-monitor-dashboard</module>
-    <module>luxlunch-frontend</module>
 
     <!-- libraries -->
     <module>treezor-api-client-java</module>

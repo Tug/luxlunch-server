@@ -4,12 +4,14 @@ services:
     image: httpd:alpine
     ports:
       - "8000:80"
+    networks: ['stack']
     volumes:
       - config-server:/usr/local/apache2/htdocs:ro
   postgres:
     image: postgres:latest
     ports:
       - "5432:5432"
+    networks: ['stack']
     volumes:
       - postgres:/data/postgres
     environment:
@@ -17,22 +19,55 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       PGDATA: /data/postgres
     restart: unless-stopped
+  keycloak-server:
+    image: jboss/keycloak:latest
+    ports:
+      - "8080:8080"
+    networks: ['stack']
+    environment:
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin
   account-microservice:
     image: luxlunch-server-dev/luxlunch-account-microservice
     build:
       context: ../luxlunch-account-microservice
       dockerfile: Dockerfile.dev
-      args:
-        buildno: 1
     volumes:
       - ..:/luxlunch-server:rw
       - ~/.m2/repository:/m2repo:rw
-    links:
-      - postgres
     depends_on:
       - postgres
     ports:
-      - "8082:8082"
+      - "8282:8282"
+    networks: ['stack']
+  api-gateway:
+    image: luxlunch-server-dev/luxlunch-api-gateway
+    build:
+      context: ../luxlunch-api-gateway
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ..:/luxlunch-server:rw
+      - ~/.m2/repository:/m2repo:rw
+    depends_on:
+      - keycloak-server
+      - account-microservice
+    ports:
+      - "8787:8787"
+    networks: ['stack']
+  frontend:
+    image: luxlunch-server-dev/luxlunch-frontend
+    build:
+      context: ../luxlunch-frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - '../luxlunch-frontend:/app'
+      - '/app/node_modules'
+    ports:
+      - '3001:3000'
+    networks: ['stack']
+    environment:
+      - NODE_ENV=development
+networks: {stack: {}}
 volumes:
   postgres:
   config-server:
