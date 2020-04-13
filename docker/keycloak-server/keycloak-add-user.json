@@ -1,0 +1,15 @@
+[ {
+	"realm" : "luxlunch",
+	"users" : [ {
+		"username" : "tug@luxlunch.lu",
+		"enabled" : true,
+		"credentials" : [ {
+			"type" : "password",
+			"secretData" : "{\"value\":\"0+R/LrElURkabTL74873GrYJrduToRc7nlzQ8+I6s8z1vkfB6TIdpe5KONR4aGdSmHyIwMj2eWcoDkfpMOvKrQ==\",\"salt\":\"kwiFwh5JzYLN+fAqBfV/pw==\"}",
+			"credentialData" : "{\"hashIterations\":100000,\"algorithm\":\"pbkdf2-sha256\"}"
+		} ],
+		"clientRoles" : {
+			"realm-management" : [ "realm-admin" ]
+		}
+	} ]
+} ]

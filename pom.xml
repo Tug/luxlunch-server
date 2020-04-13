@@ -20,6 +20,9 @@
 
     <!-- libraries -->
     <module>treezor-api-client-java</module>
+
+    <!-- Developement components -->
+    <module>luxlunch-launcher-dev</module>
   </modules>
 
   <properties>

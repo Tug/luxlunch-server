@@ -1,4 +1,4 @@
-FROM java:13-jre
+FROM openjdk:13
 
 ENV VERTICLE_FILE target/luxlunch-monitor-dashboard-fat.jar
 

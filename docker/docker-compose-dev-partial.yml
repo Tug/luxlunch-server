@@ -1,0 +1,40 @@
+version: "3.6"
+services:
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    networks:
+      - stack
+    volumes:
+      - postgres:/data/postgres
+      - ./scripts/pg-init-scripts:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-luxlunch}
+      POSTGRES_USER: ${POSTGRES_USER:-luxlunch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGDATA: /data/postgres
+    restart: unless-stopped
+  keycloak-server:
+    image: jboss/keycloak:latest
+    ports:
+      - "8180:8080"
+    networks:
+      - stack
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: ${POSTGRES_DB:-luxlunch}
+      DB_USER: ${POSTGRES_USER:-luxlunch}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DB_SCHEMA: public
+      # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the PostgreSQL JDBC driver documentation in order to use it.
+      #JDBC_PARAMS: "ssl=true"
+
+networks:
+  stack:
+volumes:
+  postgres:
+  config-server:

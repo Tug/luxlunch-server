@@ -13,13 +13,16 @@ ENV MAVEN_OPTS=-Dmaven.repo.local=$MAVEN_CACHE_HOME \
                 -Dvertx.logger-delegate-factory-class-name=io.vertx.core.logging.SLF4JLogDelegateFactory
 
 # Maven params
-ENV MAVEN_ARGS=-Dvertx.config=src/config/docker.json
+ENV DEBUG_SUSPEND=false
+ENV DEBUG_PORT=5005
+ENV CONFIG=src/config/docker.json
+ENV MAVEN_ARGS="-Dvertx.config=$CONFIG -Ddebug.suspend=$DEBUG_SUSPEND -Ddebug.port=0.0.0.0:$DEBUG_PORT"
 
 VOLUME $LUXLUNCH_HOME
 VOLUME $MAVEN_CACHE_HOME
 
-EXPOSE 8787
+EXPOSE 8080
 
 WORKDIR $LUXLUNCH_HOME/luxlunch-api-gateway
 ENTRYPOINT ["sh", "-c"]
-CMD ["mvn clean compile vertx:run $MAVEN_ARGS"]
+CMD ["mvn clean compile vertx:debug $MAVEN_ARGS"]

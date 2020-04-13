@@ -4,29 +4,63 @@ services:
     image: httpd:alpine
     ports:
       - "8000:80"
-    networks: ['stack']
+    networks:
+      - stack
     volumes:
-      - config-server:/usr/local/apache2/htdocs:ro
+    - config-server:/usr/local/apache2/htdocs:ro
   postgres:
     image: postgres:latest
     ports:
       - "5432:5432"
-    networks: ['stack']
+    networks:
+      - stack
     volumes:
       - postgres:/data/postgres
+      - ./scripts/pg-init-scripts:/docker-entrypoint-initdb.d
     environment:
+      POSTGRES_DB: ${POSTGRES_DB:-keycloak}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       PGDATA: /data/postgres
     restart: unless-stopped
-  keycloak-server:
-    image: jboss/keycloak:latest
-    ports:
-      - "8080:8080"
-    networks: ['stack']
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
     environment:
-      - KEYCLOAK_USER=admin
-      - KEYCLOAK_PASSWORD=admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-tug@luxlunch.lu}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-password}
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+      PGADMIN_CONFIG_SERVER_MODE: 'True'
+    volumes:
+      - pgadmin:/root/.pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - stack
+    restart: unless-stopped
+  keycloak-server:
+    image: jboss/keycloak:9.0.2
+    ports:
+      - "8180:8080"
+    networks:
+      - stack
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      KEYCLOAK_IMPORT: /tmp/realm-export.json
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: keycloak
+      DB_SCHEMA: public
+      DB_USER: postgres
+      DB_PASSWORD: password
+      PROXY_ADDRESS_FORWARDING: 'false'
+      # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the PostgreSQL JDBC driver documentation in order to use it.
+      #JDBC_PARAMS: "ssl=true"
+    volumes:
+      - ./keycloak-server/realm-export.json:/tmp/realm-export.json
+      - ./keycloak-server/keycloak-add-user.json:/opt/jboss/keycloak/standalone/configuration/keycloak-add-user.json
   account-microservice:
     image: luxlunch-server-dev/luxlunch-account-microservice
     build:
@@ -35,11 +69,14 @@ services:
     volumes:
       - ..:/luxlunch-server:rw
       - ~/.m2/repository:/m2repo:rw
-    depends_on:
-      - postgres
     ports:
-      - "8282:8282"
-    networks: ['stack']
+      - "8282:8080"
+      - "5005:5005"
+    networks:
+      - stack
+    environment:
+      DEBUG_SUSPEND: "false"
+      DEBUG_PORT: "5005"
   api-gateway:
     image: luxlunch-server-dev/luxlunch-api-gateway
     build:
@@ -48,26 +85,42 @@ services:
     volumes:
       - ..:/luxlunch-server:rw
       - ~/.m2/repository:/m2repo:rw
-    depends_on:
-      - keycloak-server
-      - account-microservice
     ports:
-      - "8787:8787"
-    networks: ['stack']
-  frontend:
-    image: luxlunch-server-dev/luxlunch-frontend
-    build:
-      context: ../luxlunch-frontend
-      dockerfile: Dockerfile.dev
-    volumes:
-      - '../luxlunch-frontend:/app'
-      - '/app/node_modules'
-    ports:
-      - '3001:3000'
-    networks: ['stack']
+      - "8787:8080"
+      - "5015:5005"
+    networks:
+      - stack
     environment:
-      - NODE_ENV=development
-networks: {stack: {}}
+      DEBUG_SUSPEND: "false"
+      DEBUG_PORT: "5005"
+  monitor-dashboard:
+    image: luxlunch-server-dev/luxlunch-monitor-dashboard
+    build:
+      context: ../luxlunch-monitor-dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "9100:8080"
+    networks:
+      - stack
+#  frontend:
+#    image: luxlunch-server-dev/luxlunch-frontend
+#    build:
+#      context: ../luxlunch-frontend
+#      dockerfile: Dockerfile.dev
+#    volumes:
+#      - ../luxlunch-frontend:/app
+#      - /app/node_modules
+#    ports:
+#      - '3000:3000'
+#    networks:
+#      - stack
+#    environment:
+#      - NODE_ENV=development
+#    stdin_open: true
+
+networks:
+  stack:
 volumes:
   postgres:
+  pgadmin:
   config-server:

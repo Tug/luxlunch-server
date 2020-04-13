@@ -33,12 +33,6 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
-    <dependency>
-      <groupId>lu.luxlunch</groupId>
-      <artifactId>luxlunch-frontend</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
 
     <dependency>
       <groupId>io.vertx</groupId>

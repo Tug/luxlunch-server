@@ -2,6 +2,7 @@ package lu.luxlunch.microservice.account;
 
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
+import io.vertx.serviceproxy.ServiceBinder;
 import lu.luxlunch.microservice.account.api.RestUserAccountAPIVerticle;
 import lu.luxlunch.microservice.account.impl.JdbcAccountServiceImpl;
 import lu.luxlunch.microservice.common.BaseMicroserviceVerticle;
@@ -28,11 +29,12 @@ public class UserAccountVerticle extends BaseMicroserviceVerticle {
   public void start(Future<Void> future) throws Exception {
     super.start();
 
-    logger.info( "UserAccount verticle config: " + config().encodePrettily() );
     // create the service instance
     accountService = new JdbcAccountServiceImpl(vertx, config());
     // register the service proxy on event bus
-    ProxyHelper.registerService(AccountService.class, vertx, accountService, SERVICE_ADDRESS);
+    new ServiceBinder(vertx)
+            .setAddress(SERVICE_ADDRESS)
+            .register(AccountService.class, accountService);
     // publish the service and REST endpoint in the discovery infrastructure
     publishEventBusService(SERVICE_NAME, SERVICE_ADDRESS, AccountService.class)
       .compose(servicePublished -> deployRestVerticle())

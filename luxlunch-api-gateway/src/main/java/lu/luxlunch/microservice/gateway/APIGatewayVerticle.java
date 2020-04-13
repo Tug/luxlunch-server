@@ -2,6 +2,8 @@ package lu.luxlunch.microservice.gateway;
 
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.ext.web.handler.SessionHandler;
+import io.vertx.ext.web.sstore.LocalSessionStore;
 import lu.luxlunch.microservice.account.Account;
 import lu.luxlunch.microservice.account.AccountService;
 import lu.luxlunch.microservice.common.RestAPIVerticle;
@@ -13,8 +15,6 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.core.net.JksOptions;
-import io.vertx.ext.auth.oauth2.KeycloakHelper;
 import io.vertx.ext.auth.oauth2.OAuth2Auth;
 import io.vertx.ext.auth.oauth2.OAuth2FlowType;
 import io.vertx.ext.auth.oauth2.providers.KeycloakAuth;
@@ -22,7 +22,6 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.StaticHandler;
-import io.vertx.ext.web.handler.UserSessionHandler;
 import io.vertx.servicediscovery.Record;
 import io.vertx.servicediscovery.ServiceDiscovery;
 import io.vertx.servicediscovery.types.EventBusService;
@@ -61,18 +60,25 @@ public class APIGatewayVerticle extends RestAPIVerticle {
     // body handler
     router.route().handler(BodyHandler.create());
 
+    router.errorHandler(500, rc -> {
+      System.err.println("Handling failure");
+      Throwable failure = rc.failure();
+      if (failure != null) {
+        failure.printStackTrace();
+      }
+    });
+
     // version handler
     router.get("/api/v").handler(this::apiVersion);
 
     // create OAuth 2 instance for Keycloak
-    //oauth2 = KeycloakAuth.create(vertx, OAuth2FlowType.AUTH_CODE, config());
-
-    //router.route().handler(UserSessionHandler.create(oauth2));
+    oauth2 = KeycloakAuth.create(vertx, OAuth2FlowType.AUTH_CODE, config());
+    router.route().handler(SessionHandler.create(LocalSessionStore.create(vertx)).setAuthProvider(oauth2));
 
     String hostURI = buildHostURI();
 
     // set auth callback handler
-    //router.route("/callback").handler(context -> authCallback(oauth2, hostURI, context));
+    router.route("/callback").handler(context -> authCallback(oauth2, hostURI, context));
 
     router.get("/uaa").handler(this::authUaaHandler);
     router.get("/login").handler(this::loginEntryHandler);
@@ -82,7 +88,7 @@ public class APIGatewayVerticle extends RestAPIVerticle {
     router.route("/api/*").handler(this::dispatchRequests);
 
     // static content
-    router.route("/*").handler(StaticHandler.create());
+    //router.route("/*").handler(StaticHandler.create());
 
     // enable HTTPS
     /*HttpServerOptions httpServerOptions = new HttpServerOptions()
@@ -231,7 +237,7 @@ public class APIGatewayVerticle extends RestAPIVerticle {
     }
     final String redirectTo = context.request().getParam("redirect_uri");
     final String redirectURI = hostURL + context.currentRoute().getPath() + "?redirect_uri=" + redirectTo;
-    oauth2.getToken(new JsonObject().put("code", code).put("redirect_uri", redirectURI), ar -> {
+    oauth2.authenticate(new JsonObject().put("code", code).put("redirect_uri", redirectURI), ar -> {
       if (ar.failed()) {
         logger.warn("Auth fail");
         context.fail(ar.cause());
@@ -287,15 +293,21 @@ public class APIGatewayVerticle extends RestAPIVerticle {
   }
 
   private String generateAuthRedirectURI(String from) {
-    return oauth2.authorizeURL(new JsonObject()
-      .put("redirect_uri", from + "/callback?redirect_uri=" + from)
-      .put("scope", "")
-      .put("state", ""));
+    String authorizeUrl = oauth2.authorizeURL(new JsonObject()
+            .put("redirect_uri", from + "/callback?redirect_uri=" + from)
+            .put("scope", "openid profile")
+            .put("state", ""));
+    String keycloakBaseURI = config().getString("keycloak.http.hostURI", null);
+    if ( keycloakBaseURI != null ) {
+      authorizeUrl = authorizeUrl.replace(config().getString("auth-server-url"), keycloakBaseURI);
+    }
+    return authorizeUrl;
   }
 
   private String buildHostURI() {
-    int port = config().getInteger("api.gateway.http.port", DEFAULT_PORT);
-    final String host = config().getString("api.gateway.http.address.external", "localhost");
-    return String.format("https://%s:%d", host, port);
+    //int port = config().getInteger("api.gateway.http.port.external", DEFAULT_PORT);
+    //final String host = config().getString("api.gateway.http.address.external", "localhost");
+    //return String.format("http://%s:%d", host, port); // https://
+    return config().getString("api.gateway.http.external.hostURI" );
   }
 }
