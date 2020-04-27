@@ -1,5 +1,11 @@
 package lu.luxlunch.microservice.account;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import io.swagger.client.Configuration;
+import io.swagger.client.api.UserApi;
+import io.swagger.client.api.UserApiImpl;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.json.jackson.DatabindCodec;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.serviceproxy.ServiceBinder;
@@ -8,7 +14,6 @@ import lu.luxlunch.microservice.account.impl.JdbcAccountServiceImpl;
 import lu.luxlunch.microservice.common.BaseMicroserviceVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
-import io.vertx.serviceproxy.ProxyHelper;
 
 import static lu.luxlunch.microservice.account.AccountService.SERVICE_ADDRESS;
 import static lu.luxlunch.microservice.account.AccountService.SERVICE_NAME;
@@ -37,8 +42,27 @@ public class UserAccountVerticle extends BaseMicroserviceVerticle {
             .register(AccountService.class, accountService);
     // publish the service and REST endpoint in the discovery infrastructure
     publishEventBusService(SERVICE_NAME, SERVICE_ADDRESS, AccountService.class)
-      .compose(servicePublished -> deployRestVerticle())
+      //.compose(servicePublished -> deployRestVerticle())
       .setHandler(future.completer());
+
+    JsonObject treezorConfig = config().getJsonObject("treezor-api-config");
+    String apiKey = treezorConfig.getString("api-key");
+    Configuration.setupDefaultApiClient(vertx, treezorConfig).setApiKey(apiKey).setApiKeyPrefix("Bearer");
+    DatabindCodec.mapper()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .disable(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE)
+            .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+            .enable(DeserializationFeature.ACCEPT_FLOAT_AS_INT);
+    UserApi userApi = new UserApiImpl();
+    userApi.getUsers( apiKey,"", null, null, null,
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+      responseAsync -> {
+        if (responseAsync.succeeded()) {
+          logger.info(responseAsync.result().toString());
+        } else {
+          logger.error(responseAsync.cause());
+        }
+      });
   }
 
   private Future<Void> deployRestVerticle() {

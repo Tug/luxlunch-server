@@ -1,5 +1,6 @@
 package lu.luxlunch.microservice.account.api;
 
+import io.vertx.core.json.JsonObject;
 import lu.luxlunch.microservice.account.Account;
 import lu.luxlunch.microservice.account.AccountService;
 import lu.luxlunch.microservice.common.RestAPIVerticle;
@@ -59,7 +60,10 @@ public class RestUserAccountAPIVerticle extends RestAPIVerticle {
 
   private void apiRetrieveUser(RoutingContext context) {
     String id = context.request().getParam("id");
-    accountService.retrieveAccount(id, resultHandlerNonEmpty(context));
+    context.response()
+            .putHeader("content-type", "application/json")
+            .end(new JsonObject().put("message", "hello world "+id).put("user", context.request().getHeader("user-principal")).encodePrettily());
+    //accountService.retrieveAccount(id, resultHandlerNonEmpty(context));
   }
 
   private void apiRetrieveAll(RoutingContext context) {

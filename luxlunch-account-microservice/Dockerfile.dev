@@ -20,7 +20,7 @@ ENV MAVEN_ARGS="-Dvertx.config=$CONFIG"
 ENV DEBUG_SUSPEND=false
 ENV DEBUG_PORT=5005
 ENV CONFIG=src/config/docker.json
-ENV MAVEN_ARGS="-Dvertx.config=$CONFIG -Ddebug.suspend=$DEBUG_SUSPEND -Ddebug.port=0.0.0.0:$DEBUG_PORT"
+ENV MAVEN_ARGS="-Dvertx.config=$CONFIG -Ddebug.suspend=$DEBUG_SUSPEND -Ddebug.port=0.0.0.0:$DEBUG_PORT -Dvertx.development=true"
 
 VOLUME $LUXLUNCH_HOME
 VOLUME $MAVEN_CACHE_HOME

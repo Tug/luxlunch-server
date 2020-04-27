@@ -13,8 +13,6 @@ public class Account {
 
   private String id;
   private String username;
-  private String phone;
-  private String email;
 
   public Account() {
     // Empty constructor
@@ -29,7 +27,6 @@ public class Account {
     AccountConverter.toJson(this, json);
     return json;
   }
-
 
   public String getId() {
     return id;
@@ -49,26 +46,9 @@ public class Account {
     return this;
   }
 
-  public String getPhone() {
-    return phone;
-  }
-
-  public Account setPhone(String phone) {
-    this.phone = phone;
-    return this;
-  }
-
-  public String getEmail() {
-    return email;
-  }
-
-  public Account setEmail(String email) {
-    this.email = email;
-    return this;
-  }
-
   @Override
   public String toString() {
     return toJson().encodePrettily();
   }
+
 }

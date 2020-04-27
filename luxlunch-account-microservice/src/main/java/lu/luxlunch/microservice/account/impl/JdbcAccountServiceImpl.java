@@ -37,9 +37,7 @@ public class JdbcAccountServiceImpl extends JdbcRepositoryWrapper implements Acc
   @Override
   public AccountService addAccount(Account account, Handler<AsyncResult<Void>> resultHandler) {
     JsonArray params = new JsonArray().add(account.getId())
-      .add(account.getUsername())
-      .add(account.getPhone())
-      .add(account.getEmail());
+      .add(account.getUsername());
     this.executeNoResult(params, INSERT_STATEMENT, resultHandler);
     return this;
   }
@@ -75,10 +73,17 @@ public class JdbcAccountServiceImpl extends JdbcRepositoryWrapper implements Acc
   public AccountService updateAccount(Account account, Handler<AsyncResult<Account>> resultHandler) {
     JsonArray params = new JsonArray()
       .add(account.getUsername())
-      .add(account.getPhone())
-      .add(account.getEmail())
       .add(account.getId());
     this.execute(params, UPDATE_STATEMENT, account, resultHandler);
+    return this;
+  }
+
+  public AccountService syncWithTreezor(Account account, Handler<AsyncResult<Account>> resultHandler) {
+    JsonArray params = new JsonArray()
+            .add(account.getUsername())
+            .add(account.getId());
+    this.execute(params, UPDATE_STATEMENT, account, resultHandler);
+
     return this;
   }
 
@@ -99,8 +104,6 @@ public class JdbcAccountServiceImpl extends JdbcRepositoryWrapper implements Acc
   private static final String CREATE_STATEMENT = "CREATE TABLE IF NOT EXISTS `user_account` (\n" +
     "  `id` varchar(30) NOT NULL,\n" +
     "  `username` varchar(20) NOT NULL,\n" +
-    "  `phone` varchar(20) NOT NULL,\n" +
-    "  `email` varchar(45) NOT NULL,\n" +
     "  PRIMARY KEY (`id`),\n" +
     "  UNIQUE KEY `username_UNIQUE` (`username`) )";
   private static final String INSERT_STATEMENT = "INSERT INTO user_account (id, username, phone, email, birthDate) VALUES (?, ?, ?, ?, ?)";

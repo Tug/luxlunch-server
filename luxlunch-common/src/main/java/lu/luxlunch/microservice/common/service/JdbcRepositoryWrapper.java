@@ -22,7 +22,7 @@ public class JdbcRepositoryWrapper {
   protected final JDBCClient client;
 
   public JdbcRepositoryWrapper(Vertx vertx, JsonObject config) {
-    this.client = JDBCClient.createNonShared(vertx, config);
+    this.client = JDBCClient.create(vertx, config);
   }
 
   /**

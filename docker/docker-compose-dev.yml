@@ -40,7 +40,10 @@ services:
       - stack
     restart: unless-stopped
   keycloak-server:
-    image: jboss/keycloak:9.0.2
+    image: luxlunch-server-dev/keycloak-server
+    build:
+      context: ./keycloak-server
+      dockerfile: Dockerfile
     ports:
       - "8180:8080"
     networks:
@@ -58,9 +61,6 @@ services:
       PROXY_ADDRESS_FORWARDING: 'false'
       # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the PostgreSQL JDBC driver documentation in order to use it.
       #JDBC_PARAMS: "ssl=true"
-    volumes:
-      - ./keycloak-server/realm-export.json:/tmp/realm-export.json
-      - ./keycloak-server/keycloak-add-user.json:/opt/jboss/keycloak/standalone/configuration/keycloak-add-user.json
   account-microservice:
     image: luxlunch-server-dev/luxlunch-account-microservice
     build:
@@ -117,6 +117,12 @@ services:
 #    environment:
 #      - NODE_ENV=development
 #    stdin_open: true
+  redis:
+    image: redis:latest
+    expose: # connect to it via redis-cli using docker: docker run -it --network docker_stack --rm redis redis-cli -h redis
+      - "6379"
+    networks:
+      - stack
 
 networks:
   stack:

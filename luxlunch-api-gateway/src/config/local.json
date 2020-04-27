@@ -1,4 +1,5 @@
 {
+  "env": "development",
   "api.gateway.http.port": 8787,
   "api.gateway.http.address": "localhost",
   "circuit-breaker": {
@@ -15,5 +16,8 @@
     "secret": "5148c0a6-799a-48c2-b4e7-f5122cc7d71f"
   },
   "confidential-port": 0,
-  "use-resource-role-mappings": true
+  "use-resource-role-mappings": true,
+  "whitelisted-origins": [
+    "http://localhost:3000"
+  ]
 }

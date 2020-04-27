@@ -1,34 +1,28 @@
 package lu.luxlunch.microservice.gateway;
 
 import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
-import io.vertx.ext.web.handler.SessionHandler;
-import io.vertx.ext.web.sstore.LocalSessionStore;
+import io.vertx.core.http.*;
+import io.vertx.ext.auth.User;
+import io.vertx.ext.auth.oauth2.KeycloakHelper;
+import io.vertx.ext.web.handler.BodyHandler;
+import io.vertx.ext.web.handler.CorsHandler;
+import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.rxjava.ext.auth.oauth2.AccessToken;
 import lu.luxlunch.microservice.account.Account;
 import lu.luxlunch.microservice.account.AccountService;
 import lu.luxlunch.microservice.common.RestAPIVerticle;
 import io.vertx.core.Future;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.ext.auth.oauth2.OAuth2Auth;
-import io.vertx.ext.auth.oauth2.OAuth2FlowType;
-import io.vertx.ext.auth.oauth2.providers.KeycloakAuth;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.servicediscovery.Record;
 import io.vertx.servicediscovery.ServiceDiscovery;
 import io.vertx.servicediscovery.types.EventBusService;
 import io.vertx.servicediscovery.types.HttpEndpoint;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * A verticle for global API gateway.
@@ -43,8 +37,6 @@ public class APIGatewayVerticle extends RestAPIVerticle {
 
   private static final Logger logger = LoggerFactory.getLogger(APIGatewayVerticle.class);
 
-  private OAuth2Auth oauth2;
-
   @Override
   public void start(Future<Void> future) throws Exception {
     super.start();
@@ -54,8 +46,25 @@ public class APIGatewayVerticle extends RestAPIVerticle {
     int port = config().getInteger("api.gateway.http.port", DEFAULT_PORT);
 
     Router router = Router.router(vertx);
-    // cookie and session handler
-    enableLocalSession(router);
+
+    // secure only in production
+    if (!config().getString("emv", "development").equals("development")) {
+      System.setProperty("vertx.development", "false");
+      System.setProperty("vertx.production", "true");
+      logger.info("Running in production mode");
+    } else {
+      System.setProperty("vertx.development", "true");
+      System.setProperty("vertx.production", "false");
+      logger.info("Running in development mode");
+    }
+    boolean __DEV__ = Boolean.getBoolean("vertx.development");
+
+    if (!__DEV__) {
+      SecurityConfig.setupSecurity(vertx, router);
+    }
+
+    // CORS
+    setupCORS(router);
 
     // body handler
     router.route().handler(BodyHandler.create());
@@ -67,34 +76,33 @@ public class APIGatewayVerticle extends RestAPIVerticle {
         failure.printStackTrace();
       }
     });
+    router.route().failureHandler(this::error);
 
     // version handler
-    router.get("/api/v").handler(this::apiVersion);
+    router.get("/v").handler(this::apiVersion);
 
-    // create OAuth 2 instance for Keycloak
-    oauth2 = KeycloakAuth.create(vertx, OAuth2FlowType.AUTH_CODE, config());
-    router.route().handler(SessionHandler.create(LocalSessionStore.create(vertx)).setAuthProvider(oauth2));
+    //authProvider = OAuthProvider.create(vertx, router);
+    //router.route().handler(authProvider);
+    //router.get("/uaa").handler(this::authUaaHandler);
 
-    String hostURI = buildHostURI();
-
-    // set auth callback handler
-    router.route("/callback").handler(context -> authCallback(oauth2, hostURI, context));
-
-    router.get("/uaa").handler(this::authUaaHandler);
-    router.get("/login").handler(this::loginEntryHandler);
-    router.post("/logout").handler(this::logoutHandler);
+    AuthConfig authConfig = AuthConfig.create(vertx, config().getJsonObject("keycloak-auth-options"));
+    router.route().handler(authConfig);
+    router.get("/rest/userinfo").handler(authConfig::getUserInfo);
 
     // api dispatcher
-    router.route("/api/*").handler(this::dispatchRequests);
+    router.route("/rest/*")
+            .handler(this::dispatchRequests);
+            //.consumes("application/json")
+            //.produces("application/json");
 
     // static content
-    //router.route("/*").handler(StaticHandler.create());
+    // TODO: proxy to localhost:3000 on dev or serve static content
+    if ( __DEV__ ) {
+      //WebpackDevServerProxy.create(vertx, router, "localhost", 3000);
+    }
 
-    // enable HTTPS
-    /*HttpServerOptions httpServerOptions = new HttpServerOptions()
-      .setSsl(true)
-      .setKeyStoreOptions(new JksOptions().setPath("server.jks").setPassword("123456"));
-*/
+    router.route("/*").handler(StaticHandler.create().setCachingEnabled(!__DEV__));
+
     // create http server
     vertx.createHttpServer()//httpServerOptions)
       .requestHandler(router::accept)
@@ -111,7 +119,37 @@ public class APIGatewayVerticle extends RestAPIVerticle {
       });
   }
 
+  private void setupCORS(Router router) {
+    List<String> allowedOrigins = new ArrayList<>();
+    config().getJsonArray("allowed-origins").forEach( origin -> allowedOrigins.add((String) origin));
+
+    Set<String> allowedHeaders = new HashSet<>();
+    allowedHeaders.add("x-requested-with");
+    allowedHeaders.add("Access-Control-Allow-Origin");
+    allowedHeaders.add("origin");
+    allowedHeaders.add("Content-Type");
+    allowedHeaders.add("accept");
+    allowedHeaders.add("authorization");
+
+    Set<HttpMethod> allowedMethods = new HashSet<>();
+    allowedMethods.add(HttpMethod.GET);
+    allowedMethods.add(HttpMethod.POST);
+    allowedMethods.add(HttpMethod.OPTIONS);
+    allowedMethods.add(HttpMethod.DELETE);
+    allowedMethods.add(HttpMethod.PATCH);
+    allowedMethods.add(HttpMethod.PUT);
+
+    CorsHandler handler = CorsHandler
+            .create(String.join("|", allowedOrigins))
+            .allowCredentials(true)
+            .allowedHeaders(allowedHeaders)
+            .allowedMethods(allowedMethods);
+
+    router.route().handler(handler);
+  }
+
   private void dispatchRequests(RoutingContext context) {
+    logger.debug("dispatchRequests");
     int initialOffset = 5; // length of `/api/`
     // run with circuit breaker in order to deal with failure
     circuitBreaker.execute(future -> {
@@ -120,6 +158,7 @@ public class APIGatewayVerticle extends RestAPIVerticle {
           List<Record> recordList = ar.result();
           // get relative path and retrieve prefix to dispatch client
           String path = context.request().uri();
+          logger.info(recordList.size() + " records found for request " + path);
 
           if (path.length() <= initialOffset) {
             notFound(context);
@@ -137,8 +176,10 @@ public class APIGatewayVerticle extends RestAPIVerticle {
             .findAny(); // simple load balance
 
           if (client.isPresent()) {
+            logger.info("Client found for prefix " + prefix);
             doDispatch(context, newPath, discovery.getReference(client.get()).get(), future);
           } else {
+            logger.info("Client NOT found for prefix " + prefix);
             notFound(context);
             future.complete();
           }
@@ -167,11 +208,9 @@ public class APIGatewayVerticle extends RestAPIVerticle {
           if (response.statusCode() >= 500) { // api endpoint server error, circuit breaker should fail
             cbFuture.fail(response.statusCode() + ": " + body.toString());
           } else {
-            HttpServerResponse toRsp = context.response()
-              .setStatusCode(response.statusCode());
-            response.headers().forEach(header -> {
-              toRsp.putHeader(header.getKey(), header.getValue());
-            });
+            HttpServerResponse toRsp = context.response();
+            toRsp.setStatusCode(response.statusCode());
+            toRsp.headers().setAll(response.headers());
             // send response
             toRsp.end(body);
             cbFuture.complete();
@@ -180,10 +219,9 @@ public class APIGatewayVerticle extends RestAPIVerticle {
         });
       });
     // set headers
-    context.request().headers().forEach(header -> {
-      toReq.putHeader(header.getKey(), header.getValue());
-    });
+    toReq.headers().setAll(context.request().headers());
     if (context.user() != null) {
+
       toReq.putHeader("user-principal", context.user().principal().encode());
     }
     // send request
@@ -191,6 +229,31 @@ public class APIGatewayVerticle extends RestAPIVerticle {
       toReq.end();
     } else {
       toReq.end(context.getBody());
+    }
+  }
+
+  private void authUaaHandler(RoutingContext context) {
+    if (context.user() != null) {
+      User user = context.user();
+      String username = KeycloakHelper.preferredUsername(user.principal());
+      if (username == null) {
+        context.response()
+                .putHeader("content-type", "application/json")
+                .end(new Account().setId("TEST666").setUsername("Eric").toString()); // TODO: no username should be an error
+      } else {
+        Future<AccountService> future = Future.future();
+        EventBusService.getProxy(discovery, AccountService.class, future.completer());
+        future.compose(accountService -> {
+          Future<Account> accountFuture = Future.future();
+          accountService.retrieveByUsername(username, accountFuture.completer());
+          return accountFuture.map(a -> {
+            ServiceDiscovery.releaseServiceObject(discovery, accountService);
+            return a;
+          });
+        }).setHandler(resultHandlerNonEmpty(context)); // if user does not exist, should return 404
+      }
+    } else {
+      context.fail(401);
     }
   }
 
@@ -228,86 +291,4 @@ public class APIGatewayVerticle extends RestAPIVerticle {
 
   // auth
 
-  private void authCallback(OAuth2Auth oauth2, String hostURL, RoutingContext context) {
-    final String code = context.request().getParam("code");
-    // code is a require value
-    if (code == null) {
-      context.fail(400);
-      return;
-    }
-    final String redirectTo = context.request().getParam("redirect_uri");
-    final String redirectURI = hostURL + context.currentRoute().getPath() + "?redirect_uri=" + redirectTo;
-    oauth2.authenticate(new JsonObject().put("code", code).put("redirect_uri", redirectURI), ar -> {
-      if (ar.failed()) {
-        logger.warn("Auth fail");
-        context.fail(ar.cause());
-      } else {
-        logger.info("Auth success");
-        context.setUser(ar.result());
-        context.response()
-          .putHeader("Location", redirectTo)
-          .setStatusCode(302)
-          .end();
-      }
-    });
-  }
-
-  private void authUaaHandler(RoutingContext context) {
-    if (context.user() != null) {
-      JsonObject principal = context.user().principal();
-      String username = null;  // TODO: Only for demo. Complete this in next version.
-      // String username = KeycloakHelper.preferredUsername(principal);
-      if (username == null) {
-        context.response()
-          .putHeader("content-type", "application/json")
-          .end(new Account().setId("TEST666").setUsername("Eric").toString()); // TODO: no username should be an error
-      } else {
-        Future<AccountService> future = Future.future();
-        EventBusService.getProxy(discovery, AccountService.class, future.completer());
-        future.compose(accountService -> {
-          Future<Account> accountFuture = Future.future();
-          accountService.retrieveByUsername(username, accountFuture.completer());
-          return accountFuture.map(a -> {
-            ServiceDiscovery.releaseServiceObject(discovery, accountService);
-            return a;
-          });
-        })
-          .setHandler(resultHandlerNonEmpty(context)); // if user does not exist, should return 404
-      }
-    } else {
-      context.fail(401);
-    }
-  }
-
-  private void loginEntryHandler(RoutingContext context) {
-    context.response()
-      .putHeader("Location", generateAuthRedirectURI(buildHostURI()))
-      .setStatusCode(302)
-      .end();
-  }
-
-  private void logoutHandler(RoutingContext context) {
-    context.clearUser();
-    context.session().destroy();
-    context.response().setStatusCode(204).end();
-  }
-
-  private String generateAuthRedirectURI(String from) {
-    String authorizeUrl = oauth2.authorizeURL(new JsonObject()
-            .put("redirect_uri", from + "/callback?redirect_uri=" + from)
-            .put("scope", "openid profile")
-            .put("state", ""));
-    String keycloakBaseURI = config().getString("keycloak.http.hostURI", null);
-    if ( keycloakBaseURI != null ) {
-      authorizeUrl = authorizeUrl.replace(config().getString("auth-server-url"), keycloakBaseURI);
-    }
-    return authorizeUrl;
-  }
-
-  private String buildHostURI() {
-    //int port = config().getInteger("api.gateway.http.port.external", DEFAULT_PORT);
-    //final String host = config().getString("api.gateway.http.address.external", "localhost");
-    //return String.format("http://%s:%d", host, port); // https://
-    return config().getString("api.gateway.http.external.hostURI" );
-  }
 }

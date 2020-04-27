@@ -14,19 +14,9 @@ public class AccountConverter {
   public static void fromJson(Iterable<java.util.Map.Entry<String, Object>> json, Account obj) {
     for (java.util.Map.Entry<String, Object> member : json) {
       switch (member.getKey()) {
-        case "email":
-          if (member.getValue() instanceof String) {
-            obj.setEmail((String)member.getValue());
-          }
-          break;
         case "id":
           if (member.getValue() instanceof String) {
             obj.setId((String)member.getValue());
-          }
-          break;
-        case "phone":
-          if (member.getValue() instanceof String) {
-            obj.setPhone((String)member.getValue());
           }
           break;
         case "username":
@@ -43,14 +33,8 @@ public class AccountConverter {
   }
 
   public static void toJson(Account obj, java.util.Map<String, Object> json) {
-    if (obj.getEmail() != null) {
-      json.put("email", obj.getEmail());
-    }
     if (obj.getId() != null) {
       json.put("id", obj.getId());
-    }
-    if (obj.getPhone() != null) {
-      json.put("phone", obj.getPhone());
     }
     if (obj.getUsername() != null) {
       json.put("username", obj.getUsername());

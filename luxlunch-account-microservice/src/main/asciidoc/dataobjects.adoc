@@ -12,9 +12,7 @@
 [frame="topbot"]
 |===
 ^|Name | Type ^| Description
-|[[email]]`@email`|`String`|-
 |[[id]]`@id`|`String`|-
-|[[phone]]`@phone`|`String`|-
 |[[username]]`@username`|`String`|-
 |===
 

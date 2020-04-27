@@ -6,5 +6,10 @@
   "driver_class": "org.postgresql.Driver",
   "user": "postgres",
   "password": "password",
-  "max_pool_size": 30
+  "max_pool_size": 30,
+  "treezor-api-config": {
+    "basePath":  "https://sandbox.treezor.com/v1",
+    "downloadsDir": "/tmp",
+    "api-key": "f65893c13c6559d388a509068d36487925206a74"
+  }
 }

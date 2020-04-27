@@ -39,6 +39,11 @@
       <artifactId>jspc-maven-plugin</artifactId>
       <version>2.0.0</version>
     </dependency>
+    <dependency>
+      <groupId>lu.luxlunch</groupId>
+      <artifactId>treezor-api-client-vertx</artifactId>
+      <version>1.0.0</version>
+    </dependency>
   </dependencies>
 
   <build>

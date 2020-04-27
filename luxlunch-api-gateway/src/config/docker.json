@@ -8,13 +8,25 @@
     "timeout": 10000,
     "max-failures": 5
   },
-  "realm": "luxlunch",
-  "auth-server-url": "http://keycloak-server:8080/auth",
-  "ssl-required": "none",
-  "resource": "luxlunch-server-dev-client",
-  "credentials": {
-    "secret": "0797a3fa-e813-4c5a-99ca-c399fd002582"
+  "keycloak-auth-options": {
+    "realm": "luxlunch",
+    "realm-public-key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1lGaa1MX31gzAT9Hh7fHHel2P239BaaOheEM9OIbvoc6Hl1ufzxMtJyfrwJSx+CS03tQMj4/SOZqVQ2OxGuViLIL9Cyx4vg+IZ7n/YZlwOFPo6copT3+4mNw3VHZRu8QB55vraE13IpO3s2z33wpuvQ6/zpFMJzQNW/GLM/QWhXYABHXzo2n40QQoU8GhJzNHs3NkuE1KiK5knwBEeBOHKXv3bLnENPQNGXWBdNBW1AJ5ratHXzFujeE5w2hLNdhDhjtROHdV4drOpfWIwVGuPaXv2m11thNrPzOErQy5q84mjedIEuROySyMgsjwXgJl7mcNB5bK0xeL55GcdDxMQIDAQAB",
+    "auth-server-url": "http://keycloak-server:8080/auth",
+    "ssl-required": "none",
+    "resource": "luxlunch-server-dev-client",
+    "credentials": {
+      "secret": "0797a3fa-e813-4c5a-99ca-c399fd002582"
+    },
+    "confidential-port": 0
   },
-  "confidential-port": 0,
-  "use-resource-role-mappings": true
+  "use-resource-role-mappings": true,
+  "allowed-origins": [
+    "http://localhost:3000",
+    "http://localhost:8787"
+  ],
+  "service-discovery-options": {
+    "host": "redis",
+    "port": "6379",
+    "key": "sd-records"
+  }
 }

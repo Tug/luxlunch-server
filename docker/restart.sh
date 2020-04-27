@@ -13,14 +13,22 @@ EOF
 
 force=false
 no_cache=false
-while getopts ":fn" opt; do
+# this is needed when touching luxlunch-common
+maven_install=false
+while getopts ":fnm" opt; do
   case ${opt} in
     (f) force=true;;
     (n) no_cache=true;;
+    (m) maven_install=true;;
     (*) usage
   esac
 done
 shift $((OPTIND -1))
+
+if [ "$maven_install" = true -o "$no_cache" = true ]
+then
+  ( cd ..; mvn clean install -Dmaven.test.skip=true )
+fi
 
 FORCE_ARGS=""
 NO_CACHE_ARGS=""

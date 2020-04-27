@@ -1,5 +1,6 @@
 package lu.luxlunch.microservice.common;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.*;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
@@ -8,17 +9,16 @@ import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.SessionHandler;
+import io.vertx.ext.web.handler.impl.HttpStatusException;
 import io.vertx.ext.web.sstore.ClusteredSessionStore;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * An abstract base verticle that provides several helper methods for REST API.
@@ -295,10 +295,38 @@ public abstract class RestAPIVerticle extends BaseMicroserviceVerticle {
 
   // helper method dealing with failure
 
+  protected void error(RoutingContext context) {
+    if (context.response().ended() || context.response().closed()) {
+      return;
+    }
+    Throwable failure = context.failure();
+    int code = (failure instanceof HttpStatusException) ?
+            ((HttpStatusException) failure).getStatusCode() :
+            500;
+    String message = (failure instanceof HttpStatusException) ?
+            ((HttpStatusException) failure).getPayload() :
+            (failure != null ? failure.getMessage() : null);
+
+    if (message == null || message.equals("")) {
+      message = HttpResponseStatus.valueOf(code).reasonPhrase();
+    }
+
+    context.response()
+            .setStatusCode(code)
+            .putHeader("content-type", "application/json")
+            .end(new JsonObject().put("message", message).encodePrettily());
+  }
+
   protected void badRequest(RoutingContext context, Throwable ex) {
     context.response().setStatusCode(400)
       .putHeader("content-type", "application/json")
       .end(new JsonObject().put("error", ex.getMessage()).encodePrettily());
+  }
+
+  protected void forbidden(RoutingContext context) {
+    context.response().setStatusCode(403)
+            .putHeader("content-type", "application/json")
+            .end(new JsonObject().put("message", "forbidden").encodePrettily());
   }
 
   protected void notFound(RoutingContext context) {

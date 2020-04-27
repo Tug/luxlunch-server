@@ -1,5 +1,10 @@
 {
   "monitor.http.port": 8080,
   "monitor.http.host": "monitor-dashboard",
-  "monitor.metrics.interval": 5000
+  "monitor.metrics.interval": 5000,
+  "service-discovery-options": {
+    "host": "redis",
+    "port": "6379",
+    "key": "sd-records"
+  }
 }
